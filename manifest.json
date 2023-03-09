@@ -1,0 +1,53 @@
+{
+    "manifest_version": 2,
+    "name": "Extension pour récupérer les factures amazon",
+    "version": "1.0",
+    "description": "Extension pour récupérer les factures amazon depuis le site amazon.de",
+    "permissions": [
+        "tabs",
+        "storage",
+        "http://*/*",
+        "https://*/*",
+        "activeTab",
+        "downloads",
+        "identity"
+    ],
+    "browser_action": {
+        "default_icon": "img/iconsDownload.png",
+        "default_title": "Extension pour récupérer les factures amazon"
+    },
+    "icons": {
+        "128": "img/iconsDownload.png"
+    },
+    "background": {
+        "scripts": [
+            "scripts/background.js"
+        ]
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "http://*/*",
+                "https://*/*"
+            ],
+            "js": [
+                "scripts/popup.js",
+                "scripts/jszip.min.js"
+            ]
+        }
+    ],
+    "oauth2": {
+        "client_id": "502535154780-qkup2hnuicsaj9sv5sju0of5uh450nq9.apps.googleusercontent.com",
+        "scopes": [
+            "https://www.googleapis.com/auth/drive",
+            "https://www.googleapis.com/auth/drive.file",
+            "https://www.googleapis.com/auth/drive.appdata",
+            "https://www.googleapis.com/auth/drive.apps.readonly",
+            "https://www.googleapis.com/auth/drive.metadata.readonly",
+            "https://www.googleapis.com/auth/drive.photos.readonly",
+            "https://www.googleapis.com/auth/drive.metadata",
+            "https://www.googleapis.com/auth/drive.readonly",
+            "https://www.googleapis.com/auth/drive.scripts"
+        ]
+    }
+}
