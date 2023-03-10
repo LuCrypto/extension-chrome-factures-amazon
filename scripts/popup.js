@@ -7,6 +7,33 @@ const delay = (n) => {
 
 // Pour cliquer sur tous les boutons "Facture"
 const generateAllFactures = async () => {
+
+    const allDate = []
+    const allOrderCommand = []
+    const orderFactures = []
+
+    // Get date and order command
+    const allOrders = document.querySelectorAll('#ordersContainer > div[class="a-box-group a-spacing-base order js-order-card"]')
+
+    allOrders.forEach((order) => {
+        let spanDate = order.querySelector(' div.a-box.a-color-offset-background.order-info > div > div > div > div.a-fixed-right-grid-col.a-col-left > div > div.a-column.a-span4 > div.a-row.a-size-base > span')
+        let spanOrderCommand = order.querySelector('div.a-box.a-color-offset-background.order-info > div > div > div > div.a-fixed-right-grid-col.actions.a-col-right > div.a-row.a-size-mini.yohtmlc-order-id > span.a-color-secondary.value > bdi')
+        if (spanDate === null) {
+            allDate.push('no-date')
+        } else {
+            allDate.push(spanDate.textContent)
+        }
+
+        if (spanOrderCommand === null) {
+            allOrderCommand.push('no-order')
+        } else {
+            allOrderCommand.push(spanOrderCommand.textContent)
+        }
+        console.log('spanOrderCommand.textContent :', spanOrderCommand.textContent)
+    })
+
+    // =================================================
+
     const liens = document.querySelectorAll('a');
 
     console.log('liens avant :', liens.length);
@@ -17,6 +44,7 @@ const generateAllFactures = async () => {
         const lien = liens[i];
         const textContent = lien.textContent;
 
+        // Cliquer sur le bouton "Facture"
         if (textContent.includes('Facture')) {
             console.log('click !')
             lien.click();
@@ -25,13 +53,20 @@ const generateAllFactures = async () => {
                 await delay(300)
                 console.log('test')
             }
-            numberFinal = document.querySelectorAll('a').length;
             await delay(300)
+            numberFinal = document.querySelectorAll('a').length;
+
+            // Récupérer les liens des factures
+            // TODO
+
+            orderFactures.push({
+                date: (allDate[orderFactures.length - 1] === undefined) ? 'no-date' : allDate[orderFactures.length - 1],
+                orderCommand: (allOrderCommand[orderFactures.length - 1] === undefined) ? 'no-order' : allOrderCommand[orderFactures.length - 1],
+            })
         }
     }
 
-    console.log('avant 10 secondes')
-    await delay(10)
+    console.log('orderFactures :', orderFactures)
 
     console.log('apres')
     console.log('liens après :', document.querySelectorAll('a').length);
@@ -42,21 +77,15 @@ const getAllLinks = () => {
     const liens = document.querySelectorAll('a');
 
     console.log('liens :', liens.length);
-    // Initialisation d'un tableau pour stocker les liens correspondants
-    // const liensDocuments = [];
 
     // Parcours de tous les liens de la page
     for (let i = 0; i < liens.length; i++) {
         const lien = liens[i];
         const href = lien.getAttribute('href');
 
-        // console.log('href :', href)
         // Vérification si l'attribut href contient la chaîne de caractères "documents/download/" suivie d'un nombre
         if (href !== null && href.includes("documents/download/")) {
             console.log('trouve : ', href);
-            // Ajout du lien correspondant dans le tableau
-            // liensDocuments.push(lien.href);
-
             let array = JSON.parse(sessionStorage.getItem('consoleLog'));
             if (array === null) {
                 array = [];
@@ -65,10 +94,6 @@ const getAllLinks = () => {
             sessionStorage.setItem('consoleLog', JSON.stringify(array))
         }
     }
-
-    // Affichage des liens correspondants dans la console
-    // console.log("liensDocuments :", liensDocuments);
-    // return liensDocuments;
 }
 
 // Pour télécharger tous les liens dans un zip
@@ -81,41 +106,47 @@ const downloadAllUrls = (urls) => {
 
     Promise.all(urls.map(url =>
         fetch(url)
-            .then(response => response.blob())
+            .then(response => {
+                console.log('response :', response)
+                return response.blob()
+            })
             .then(blob => pdfs.push(blob))
     )).then(() => {
         // toutes les PDF ont été récupérées avec succès
-        const zip = new JSZip();
+        // const zip = new JSZip();
+        let tokenGoogle = sessionStorage.getItem('tokenGoogle');
+        console.log('tokenGoogle :', tokenGoogle)
 
         pdfs.forEach((pdf, index) => {
-            zip.file(`pdf${index + 1}.pdf`, pdf);
+            console.log('pdf :', pdf.text)
+            // zip.file(`pdf${index + 1}.pdf`, pdf);
+            createFileIntoDrive(tokenGoogle, `pdf${index + 1}.pdf`, 'pdf', pdf)
+            return
         });
 
-        zip.generateAsync({ type: 'blob' }).then(zipBlob => {
+        // zip.generateAsync({ type: 'blob' }).then(zipBlob => {
+        //     console.log('FINISH :', zipBlob)
 
+        //     let tokenGoogle = sessionStorage.getItem('tokenGoogle');
+        //     console.log('tokenGoogle :', tokenGoogle)
+        //     createFileIntoDrive(tokenGoogle, 'mesPdfs.zip', 'zip', zipBlob)
+        // le fichier zip a été créé avec succès
+        // var url = URL.createObjectURL(zipBlob);
+        // var link = document.createElement('a');
 
-            console.log('FINISH :', zipBlob)
+        // link.href = url;
+        // link.download = 'files.zip';
 
-            let tokenGoogle = sessionStorage.getItem('tokenGoogle');
-            console.log('tokenGoogle :', tokenGoogle)
-            createFileIntoDrive(tokenGoogle, 'mesPdfs.zip', 'zip', zipBlob)
-            // le fichier zip a été créé avec succès
-            // var url = URL.createObjectURL(zipBlob);
-            // var link = document.createElement('a');
+        // console.log('FINISH :', zipBlob)
+        // console.log('FINISH :', url)
 
-            // link.href = url;
-            // link.download = 'files.zip';
+        // // Ajout du lien au DOM et clic pour lancer le téléchargement
+        // document.body.appendChild(link);
+        // link.click();
 
-            // console.log('FINISH :', zipBlob)
-            // console.log('FINISH :', url)
-
-            // // Ajout du lien au DOM et clic pour lancer le téléchargement
-            // document.body.appendChild(link);
-            // link.click();
-
-            // // Suppression du lien du DOM
-            // document.body.removeChild(link);
-        });
+        // // Suppression du lien du DOM
+        // document.body.removeChild(link);
+        // });
     });
 }
 
@@ -126,13 +157,15 @@ const mainFunction = async () => {
     // Cliquer sur tous les boutons "Facture"
     await generateAllFactures();
 
+    return
+
     // Récupération de tous les liens de la page into consoleLog
     getAllLinks();
 
     // Save all links
     // sessionStorage.setItem('liensDocuments', JSON.stringify(liensDocuments));
 
-    if (document.querySelector('#ordersContainer > div.a-row > div > ul > li.a-disabled.a-last') === null) {
+    if (document.querySelector('#ordersContainer > div.a-row > div > ul > li.a-disabled.a-last') === null && document.querySelector('#ordersContainer > div.a-row > div > ul') !== null) {
         suivant.querySelector('a').click()
     } else {
         // console.log('avant download :', liensDocuments)
@@ -157,6 +190,7 @@ function main(message, sender, sendResponse) {
 }
 
 const createFileIntoDrive = (token, nom, type, fileContent) => {
+    console.log('createFileIntoDrive')
     const metadata = {
         name: nom,
         mimeType: 'application/' + type,
@@ -176,12 +210,21 @@ const createFileIntoDrive = (token, nom, type, fileContent) => {
     xhr.onload = () => {
         const fileId = xhr.response.id;
         console.log('response 2 : ', xhr.response)
+
+        if (xhr.response.error) {
+            console.log('error 3 : ', xhr.response)
+            createFileIntoDrive(token, nom, type, fileContent)
+        }
+        /* Do something with xhr.response */
+    };
+    xhr.onerror = () => {
+        console.log('error 2 : ', xhr.response)
+        createFileIntoDrive(token, nom, type, fileContent)
+
         /* Do something with xhr.response */
     };
     xhr.send(form);
 }
-
-console.log('popup.js loaded');
 
 // MAIN
 console.log('popup.js loaded');
