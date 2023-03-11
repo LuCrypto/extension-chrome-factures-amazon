@@ -1,4 +1,4 @@
-const folderMonth = ['Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre'];
+const folderMonth = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 
 
 function retirerEspacesEtRetoursALaLigne(chaine) {
@@ -62,9 +62,6 @@ const generateAllFacturesAndGetData = async () => {
             await delay(300)
             numberFinal = document.querySelectorAll('a').length;
 
-            // Récupérer les liens des factures
-            // TODO
-
             const liens = document.querySelectorAll('a');
             console.log('liens :', liens.length);
 
@@ -102,6 +99,15 @@ const generateAllFacturesAndGetData = async () => {
     }
 
     // Save orderFactures in session storage
+    // for multi page
+    let arrayOldOrder = sessionStorage.getItem('consoleLog')
+    if (arrayOldOrder !== null) {
+        arrayOldOrder = JSON.parse(arrayOldOrder)
+        arrayOldOrder.forEach(element => {
+            orderFactures.push(element)
+        });
+    }
+
     sessionStorage.setItem('consoleLog', JSON.stringify(orderFactures))
     console.log('orderFactures :', orderFactures)
 
@@ -109,7 +115,7 @@ const generateAllFacturesAndGetData = async () => {
 }
 
 // Pour télécharger tous les liens dans un zip
-const downloadAllUrls = (arrayObjectData) => {
+const downloadAllUrls = async (arrayObjectData) => {
     if (arrayObjectData.length === 0) {
         return;
     }
@@ -118,13 +124,24 @@ const downloadAllUrls = (arrayObjectData) => {
     let tokenGoogle = sessionStorage.getItem('tokenGoogle');
     console.log('tokenGoogle :', tokenGoogle)
 
+    const arrayFolderId = await getAllFolderId(tokenGoogle)
+    console.log('arrayFolderId :', arrayFolderId)
+
     Promise.all(arrayObjectData.map(bigData =>
         bigData.arrayLink.forEach(url => {
             fetch(url)
                 .then(async response => {
                     console.log('response :', response)
 
-                    createFileIntoDrive(tokenGoogle, `pdf-${bigData.date}-${bigData.orderCommand}.pdf`, 'pdf', await response.blob())
+                    // get the second string of the bigData.date
+                    const date = bigData.date.split(' ')[1]
+
+                    // Find the id for the folder with the date
+                    const folderId = arrayFolderId.find(folder => (folder.month.toString().toLowerCase()).localeCompare((date).toString().toLowerCase()) == 0).id
+                    console.log('date : ', date)
+                    console.log('folderId :', folderId)
+
+                    createFileIntoDrive(tokenGoogle, `pdf-${bigData.date}-${bigData.orderCommand}.pdf`, 'pdf', folderId, await response.blob())
                     index++;
                 })
         })
@@ -150,15 +167,16 @@ const mainFunction = async () => {
 }
 
 const automatic = async () => {
-    await delay(10000)
+    await delay(7)
     mainFunction()
 }
 
-const createFileIntoDrive = (token, nom, type, fileContent) => {
+const createFileIntoDrive = (token, nom, type, idFolder, fileContent) => {
     console.log('createFileIntoDrive')
     const metadata = {
         name: nom,
-        mimeType: 'application/' + type
+        mimeType: 'application/' + type,
+        parents: [idFolder]
     };
 
     // const file = new Blob([JSON.stringify(fileContent)], { type: 'application/' + type });
@@ -177,13 +195,13 @@ const createFileIntoDrive = (token, nom, type, fileContent) => {
 
         if (xhr.response.error) {
             console.log('error 3 : ', xhr.response)
-            createFileIntoDrive(token, nom, type, fileContent)
+            createFileIntoDrive(token, nom, type, idFolder, fileContent)
         }
         /* Do something with xhr.response */
     };
     xhr.onerror = () => {
         console.log('error 2 : ', xhr.response)
-        createFileIntoDrive(token, nom, type, fileContent)
+        createFileIntoDrive(token, nom, type, idFolder, fileContent)
 
         /* Do something with xhr.response */
     };
@@ -191,57 +209,129 @@ const createFileIntoDrive = (token, nom, type, fileContent) => {
 }
 
 const createFolder = (token, nameFolder) => {
-    var url = 'https://www.googleapis.com/drive/v3/files';
+    return new Promise((resolve, reject) => {
+        var url = 'https://www.googleapis.com/drive/v3/files';
 
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', url);
-    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-    xhr.setRequestHeader('Content-Type', 'application/json');
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', url);
+        xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+        xhr.setRequestHeader('Content-Type', 'application/json');
 
-    xhr.onreadystatechange = function () {
-        if (xhr.readyState === 4 && xhr.status === 200) {
-            console.log(xhr.responseText);
-        } else {
-            console.log('Erreur lors de la création du dossier');
-        }
-    };
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                // console.log('BONJOUR', xhr.responseText);
+                resolve(JSON.parse(xhr.responseText).id);
+            } else {
+                console.log('Erreur lors de la création du dossier');
+            }
+        };
 
-    var data = JSON.stringify({
-        'name': nameFolder,
-        'mimeType': 'application/vnd.google-apps.folder'
-    });
+        var data = JSON.stringify({
+            'name': nameFolder,
+            'mimeType': 'application/vnd.google-apps.folder'
+        });
 
-    xhr.send(data);
+        xhr.send(data);
+    })
 }
 
 const findFolder = (token, nameFolder) => {
-    var folderName = 'Nom du dossier';
+    return new Promise((resolve, reject) => {
+        var url = 'https://www.googleapis.com/drive/v3/files';
+        url += '?q=name="' + nameFolder + '" and mimeType="application/vnd.google-apps.folder"';
 
-    var url = 'https://www.googleapis.com/drive/v3/files';
-    url += '?q=name="' + folderName + '" and mimeType="application/vnd.google-apps.folder"';
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url);
+        xhr.setRequestHeader('Authorization', 'Bearer ' + token);
 
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', url);
-    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                var response = JSON.parse(xhr.responseText);
+                var files = response.files;
 
-    xhr.onreadystatechange = function () {
-        if (xhr.readyState === 4 && xhr.status === 200) {
-            var response = JSON.parse(xhr.responseText);
-            var files = response.files;
-
-            if (files.length > 0) {
-                console.log('ID du dossier: ' + files[0].id);
-                console.log('Dossier: ', files[0])
-                console.log('all : ', files)
+                if (files.length > 0) {
+                    console.log('ID du dossier: ' + files[0].id);
+                    // console.log('Dossier: ', files[0])
+                    // console.log('all : ', files)
+                    resolve(files[0].id);
+                } else {
+                    console.log('Aucun dossier trouvé avec ce nom.');
+                    resolve(null);
+                }
             } else {
-                console.log('Aucun dossier trouvé avec ce nom.');
+                console.log('Erreur lors de la récupération du dossier.');
+                // reject(new Error('Erreur lors de la récupération du dossier.'));
             }
-        } else {
-            console.log('Erreur lors de la récupération du dossier.');
-        }
-    };
+        };
 
-    xhr.send();
+        xhr.send();
+    })
+}
+
+const findFile = (token, fileName) => {
+    return new Promise((resolve, reject) => {
+        var url = 'https://www.googleapis.com/drive/v3/files';
+        url += '?q=name="' + fileName + '" and mimeType!="application/vnd.google-apps.folder"';
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url);
+        xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    var files = response.files;
+
+                    if (files.length > 0) {
+                        console.log('ID du fichier: ' + files[0].id);
+                        console.log('Fichier: ', files[0])
+                        console.log('all : ', files)
+                        resolve('Bonjour');
+                    } else {
+                        console.log('Aucun fichier trouvé avec ce nom.');
+                        resolve('Salut');
+                    }
+                } else {
+                    console.log('Erreur lors de la récupération du fichier.');
+                    reject(new Error('Erreur lors de la récupération du fichier.'));
+                }
+            }
+        };
+
+        xhr.send();
+    });
+};
+
+// Exemple d'utilisation
+findFile('mon-token', 'mon-fichier')
+    .then((value) => {
+        console.log(value); // Output: Bonjour ou Salut
+    })
+    .catch((error) => {
+        console.log(error.message);
+    });
+
+const getAllFolderId = async (token) => {
+    const arrayData = []
+
+    for (let i = 0; i < folderMonth.length; i++) {
+        let month = folderMonth[i]
+
+        let myId = await findFolder(token, month)
+        if (myId == null) {
+            myId = await createFolder(token, month)
+        }
+
+        const object = {
+            month: month,
+            id: myId
+        }
+
+        arrayData.push(object)
+    }
+
+    return arrayData
 }
 
 // MAIN
@@ -254,7 +344,7 @@ if (sessionStorage.getItem('consoleLog') !== null) {
 chrome.runtime.onMessage.addListener(gotMessage);
 
 // Quand on clique sur l'extension
-function gotMessage(message, sender, sendResponse) {
+async function gotMessage(message, sender, sendResponse) {
     // console.log(message.token);
     let tokenGoogle = message.token
     console.log('tokenGoogle 2 :', tokenGoogle)
@@ -262,5 +352,8 @@ function gotMessage(message, sender, sendResponse) {
     mainFunction()
     // createFolder('janvier', tokenGoogle)
     // createFolder(tokenGoogle)
-    // findFolder(tokenGoogle)
+    // let value = await createFolder(tokenGoogle, 'bnojour')
+
+    // const array = await getAllFolderId(tokenGoogle)
+    // console.log('array :', array)
 }
