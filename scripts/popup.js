@@ -120,7 +120,6 @@ const downloadAllUrls = async (arrayObjectData) => {
         return;
     }
 
-    let index = 0;
     let tokenGoogle = sessionStorage.getItem('tokenGoogle');
     console.log('tokenGoogle :', tokenGoogle)
 
@@ -141,8 +140,13 @@ const downloadAllUrls = async (arrayObjectData) => {
                     console.log('date : ', date)
                     console.log('folderId :', folderId)
 
-                    createFileIntoDrive(tokenGoogle, `pdf-${bigData.date}-${bigData.orderCommand}.pdf`, 'pdf', folderId, await response.blob())
-                    index++;
+                    findFile(tokenGoogle, `pdf-${bigData.date}-${bigData.orderCommand}.pdf`).then(async (exist) => {
+                        console.log('exist :', exist)
+                        // Si le fichier n'existe pas, on le crée
+                        if (!exist) {
+                            createFileIntoDrive(tokenGoogle, `pdf-${bigData.date}-${bigData.orderCommand}.pdf`, 'pdf', folderId, await response.blob())
+                        }
+                    })
                 })
         })
     ))
@@ -287,14 +291,13 @@ const findFile = (token, fileName) => {
                         console.log('ID du fichier: ' + files[0].id);
                         console.log('Fichier: ', files[0])
                         console.log('all : ', files)
-                        resolve('Bonjour');
+                        resolve(true);
                     } else {
                         console.log('Aucun fichier trouvé avec ce nom.');
-                        resolve('Salut');
+                        resolve(false);
                     }
                 } else {
                     console.log('Erreur lors de la récupération du fichier.');
-                    reject(new Error('Erreur lors de la récupération du fichier.'));
                 }
             }
         };
@@ -341,10 +344,4 @@ async function gotMessage(message, sender, sendResponse) {
     console.log('tokenGoogle 2 :', tokenGoogle)
     sessionStorage.setItem('tokenGoogle', tokenGoogle)
     mainFunction()
-    // createFolder('janvier', tokenGoogle)
-    // createFolder(tokenGoogle)
-    // let value = await createFolder(tokenGoogle, 'bnojour')
-
-    // const array = await getAllFolderId(tokenGoogle)
-    // console.log('array :', array)
 }
