@@ -303,15 +303,6 @@ const findFile = (token, fileName) => {
     });
 };
 
-// Exemple d'utilisation
-findFile('mon-token', 'mon-fichier')
-    .then((value) => {
-        console.log(value); // Output: Bonjour ou Salut
-    })
-    .catch((error) => {
-        console.log(error.message);
-    });
-
 const getAllFolderId = async (token) => {
     const arrayData = []
 
