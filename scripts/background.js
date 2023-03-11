@@ -1,5 +1,3 @@
-chrome.browserAction.setBadgeText({ text: 'ON' });
-
 console.log('background.js loaded');
 
 chrome.browserAction.onClicked.addListener(buttonClicked);
